@@ -1,0 +1,4 @@
+shared_data.json
+shared_photos/
+*.log
+deploy.sh

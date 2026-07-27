@@ -890,28 +890,25 @@ const NOVA_BIRTHDAY = '2026-02-27';
 const ADULT_WEIGHT = 10; // Target adult weight (kg)
 
 // ═══════════════════════════════════════════
-// STATE (persisted to localStorage)
+// STATE (shared via server API)
 // ═══════════════════════════════════════════
-function loadState(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
-  catch(e) { return fallback; }
-}
-function saveState(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-
 const DEFAULT_FAMILY = [
   { id: 'casey', name: 'Casey', role: '大哥', desc: '稳重靠谱的大哥，Nova 的靠山。虽然偶尔会被小弟烦到翻白眼，但关键时候总是护着 Nova。', avatar: '', emoji: '🧑' },
   { id: 'josie', name: 'Josie', role: '大姐', desc: '优雅美丽的大姐。对 Nova 的犯傻行为表示鄙视，但也默许他蹭过来一起睡。', avatar: '', emoji: '👩' },
   { id: 'nova',  name: 'Nova',  role: '小弟 · 老幺', desc: '全家的傻儿子，被宠坏的老幺。虽然脑子不太够用，但是全家最会撒娇的那个，仗着自己小为所欲为。', avatar: '', emoji: '🐱' },
 ];
 
-let photos = loadState('novaPhotos_v2', []);
-let timelineData = loadState('novaTimeline_v2', []);
-let funFacts = loadState('novaFunFacts_v2', []);
-let weights = loadState('novaWeights_v2', []);
-let loves = loadState('novaLoves_v2', {});
-let messages = loadState('novaMessages_v2', []);
-let spankCount = loadState('novaSpankCount', 0);
-let familyMembers = loadState('novaFamily_v2', DEFAULT_FAMILY);
+function saveState(key, val) { localStorage.setItem('nova_' + key, JSON.stringify(val)); }
+function loadState(key, fallback) { try { const v = localStorage.getItem('nova_' + key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; } }
+
+let photos = loadState('photos', []);
+let timelineData = loadState('timeline', []);
+let funFacts = loadState('funFacts', []);
+let weights = loadState('weights', []);
+let loves = loadState('loves', {});
+let messages = loadState('messages', []);
+let spankCount = loadState('spankCount', 0);
+let familyMembers = loadState('family', [...DEFAULT_FAMILY]);
 let adminMode = false;
 let currentFilter = 'all';
 let currentPhotoIndex = 0;
@@ -942,9 +939,11 @@ function getBirthdayInfo() {
 
 function updateBirthdayUI() {
   const info = getBirthdayInfo();
-  const ageYears = info.ageYears;
-  const years = Math.floor(ageYears);
-  const months = Math.floor((ageYears - years) * 12);
+  const bday = new Date(NOVA_BIRTHDAY + 'T00:00:00');
+  const now = new Date();
+  let years = now.getFullYear() - bday.getFullYear();
+  let months = now.getMonth() - bday.getMonth();
+  if (months < 0) { years--; months += 12; }
 
   document.getElementById('novaAge').textContent = `${years}岁${months}个月`;
   document.getElementById('daysAlive').textContent = info.ageDays.toLocaleString();
@@ -988,7 +987,8 @@ function renderGallery(filter = 'all') {
     return `
     <div class="photo-card ${adminMode ? 'admin-mode' : ''}" data-index="${idx}" data-cat="${p.cat}"
          onclick="${adminMode ? '' : `openLightbox(${idx})`}">
-      <img src="${p.src}" alt="${escapeHtml(p.caption)}" loading="lazy" />
+      <img src="${p.src}" alt="${escapeHtml(p.caption)}" loading="lazy"
+           onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0e8db%22 width=%22200%22 height=%22200%22/><text x=%22100%22 y=%22100%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2240%22>🐱</text></svg>'" />
       ${adminMode ? `<button class="card-delete" onclick="event.stopPropagation();deletePhoto(${idx})" title="删除照片">✕</button>` : ''}
       <div class="card-badge">${p.emoji}</div>
       <div class="card-overlay">
@@ -1049,7 +1049,9 @@ function renderFamily() {
       <div class="family-avatar-wrap" onclick="triggerFamilyAvatar('${m.id}')" title="点击更换头像">
         ${m.avatar
           ? `<img src="${m.avatar}" alt="${m.name}" />`
-          : `<div class="family-avatar-placeholder">${m.emoji}</div>`
+          : (m.hasAvatar
+            ? `<img src="${m.avatar}" alt="${m.name}" />`
+            : `<div class="family-avatar-placeholder">${m.emoji}</div>`)
         }
         <div class="family-avatar-edit">📷 换头像</div>
       </div>
@@ -1088,7 +1090,7 @@ function handleFamilyAvatar(id, input) {
     const member = familyMembers.find(m => m.id === id);
     if (member) {
       member.avatar = e.target.result;
-      saveState('novaFamily_v2', familyMembers);
+      saveState('family', familyMembers);
       renderFamily();
       showToast('头像已更新！📷');
     }
@@ -1123,7 +1125,7 @@ function saveFamilyEdit(id) {
   member.name = name;
   member.role = role;
   member.desc = desc;
-  saveState('novaFamily_v2', familyMembers);
+  saveState('family', familyMembers);
   renderFamily();
   showToast('资料已保存！✏️');
 }
@@ -1222,24 +1224,19 @@ function deletePhotoFromLightbox() {
   const p = photos[currentPhotoIndex];
   photos = photos.filter(ph => ph.id !== p.id);
   delete loves[p.id];
-  saveState('novaPhotos_v2', photos);
-  saveState('novaLoves_v2', loves);
+  saveState('photos', photos);
+  saveState('loves', loves);
   closeLightbox();
   renderGallery(currentFilter);
   showToast('照片已删除 🗑️');
 }
 
-// ═══════════════════════════════════════════
-// PHOTO MANAGEMENT
-// ═══════════════════════════════════════════
 function toggleAdminMode() {
   adminMode = !adminMode;
   const btn = document.getElementById('toggleAdmin');
   btn.textContent = adminMode ? '🔧 退出管理' : '🔧 管理';
   btn.style.background = adminMode ? '#e8d0d0' : '';
   btn.style.color = adminMode ? '#a04040' : '';
-  document.getElementById('btnAddPhoto').style.display = adminMode ? 'inline-flex' : 'none';
-  if (!adminMode) document.getElementById('btnAddPhoto').style.display = 'inline-flex';
   renderGallery(currentFilter);
   showToast(adminMode ? '管理模式已开启，点击照片左上角 ✕ 可删除' : '管理模式已退出');
 }
@@ -1249,8 +1246,8 @@ function deletePhoto(index) {
   if (!confirm(`确定要删除照片"${p.caption}"吗？`)) return;
   photos = photos.filter(ph => ph.id !== p.id);
   delete loves[p.id];
-  saveState('novaPhotos_v2', photos);
-  saveState('novaLoves_v2', loves);
+  saveState('photos', photos);
+  saveState('loves', loves);
   renderGallery(currentFilter);
   showToast('照片已删除 🗑️');
 }
@@ -1268,7 +1265,7 @@ function openAddPhotoModal() {
 
 function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
 
-function savePhotoFromModal() {
+async function savePhotoFromModal() {
   const fileInput = document.getElementById('photoFile');
   const caption = document.getElementById('photoCaption').value.trim();
   const date = document.getElementById('photoDate').value;
@@ -1283,44 +1280,50 @@ function savePhotoFromModal() {
   function doSave(base64Src) {
     const maxId = photos.reduce((max, p) => Math.max(max, p.id), 0);
     photos.push({ id: maxId + 1, src: base64Src, cat, date, caption, emoji });
-    saveState('novaPhotos_v2', photos);
+    saveState('photos', photos);
     renderGallery(currentFilter);
     closeModal();
     showToast('照片添加成功！✨');
   }
 
   if (file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      if (e.target.result.length > 5 * 1024 * 1024) {
-        showToast('⚠️ 图片太大了（超过5MB），请压缩后再上传');
-        return;
-      }
-      doSave(e.target.result);
-    };
-    reader.readAsDataURL(file);
+    compressAndSave(file, doSave);
   } else {
     showToast('请选择一张照片～');
   }
+
+  function compressAndSave(file, callback) {
+    const img = new Image();
+    img.onload = function() {
+      const maxW = 1600, maxH = 1600;
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        const ratio = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = function() { showToast('⚠️ 图片读取失败，请换一张试试'); };
+    img.src = URL.createObjectURL(file);
+  }
 }
 
-// ═══════════════════════════════════════════
-// WEIGHT MANAGEMENT
-// ═══════════════════════════════════════════
+// ═══════════════════════ WEIGHT ═══════════════════════
 function addWeight() {
   const dateInput = document.getElementById('growthDate');
   const weightInput = document.getElementById('growthWeight');
   const date = dateInput.value;
   const weight = parseFloat(weightInput.value);
-
   if (!date) { showToast('请选择日期～'); return; }
   if (isNaN(weight) || weight <= 0 || weight > 20) { showToast('请输入合理的体重（0.1-20 kg）～'); return; }
-
-  weights.push({ date, weight });
+  weights.push({date, weight});
   weights.sort((a, b) => a.date.localeCompare(b.date));
-  saveState('novaWeights_v2', weights);
-  renderWeights();
-  updateBirthdayUI();
+  saveState('weights', weights);
+  renderWeights(); updateBirthdayUI();
   dateInput.value = new Date().toISOString().slice(0,10);
   weightInput.value = '';
   showToast('体重记录已添加！⚖️');
@@ -1328,28 +1331,23 @@ function addWeight() {
 
 function deleteWeight(index) {
   weights.splice(index, 1);
-  saveState('novaWeights_v2', weights);
-  renderWeights();
-  updateBirthdayUI();
+  saveState('weights', weights);
+  renderWeights(); updateBirthdayUI();
   showToast('记录已删除');
 }
 
-// ═══════════════════════════════════════════
-// TIMELINE MANAGEMENT
-// ═══════════════════════════════════════════
+// ═══════════════════════ TIMELINE ═══════════════════════
 function addTimeline() {
   const icon = document.getElementById('tlEmoji').value.trim() || '🐾';
   const date = document.getElementById('tlDate').value;
   const title = document.getElementById('tlTitle').value.trim();
   const desc = document.getElementById('tlDesc').value.trim();
-
   if (!date) { showToast('请选择日期～'); return; }
   if (!title) { showToast('请输入标题～'); return; }
   if (!desc) { showToast('请输入描述～'); return; }
-
-  timelineData.push({ icon, date, title, desc });
+  timelineData.push({icon, date, title, desc});
   timelineData.sort((a, b) => a.date.localeCompare(b.date));
-  saveState('novaTimeline_v2', timelineData);
+  saveState('timeline', timelineData);
   renderTimeline();
   document.getElementById('tlEmoji').value = '';
   document.getElementById('tlDate').value = '';
@@ -1361,24 +1359,20 @@ function addTimeline() {
 function deleteTimeline(index) {
   if (!confirm('确定删除这条大事记吗？')) return;
   timelineData.splice(index, 1);
-  saveState('novaTimeline_v2', timelineData);
+  saveState('timeline', timelineData);
   renderTimeline();
   showToast('已删除');
 }
 
-// ═══════════════════════════════════════════
-// FUN FACTS MANAGEMENT
-// ═══════════════════════════════════════════
+// ═══════════════════════ FUN FACTS ═══════════════════════
 function addFact() {
   const emoji = document.getElementById('ffEmoji').value.trim() || '🐱';
   const title = document.getElementById('ffTitle').value.trim();
   const desc = document.getElementById('ffDesc').value.trim();
-
   if (!title) { showToast('请输入标题～'); return; }
   if (!desc) { showToast('请输入描述～'); return; }
-
-  funFacts.push({ emoji, title, desc });
-  saveState('novaFunFacts_v2', funFacts);
+  funFacts.push({emoji, title, desc});
+  saveState('funFacts', funFacts);
   renderFunFacts();
   document.getElementById('ffEmoji').value = '';
   document.getElementById('ffTitle').value = '';
@@ -1389,14 +1383,11 @@ function addFact() {
 function deleteFact(index) {
   if (!confirm('确定删除这条冷知识吗？')) return;
   funFacts.splice(index, 1);
-  saveState('novaFunFacts_v2', funFacts);
+  saveState('funFacts', funFacts);
   renderFunFacts();
   showToast('已删除');
 }
 
-// ═══════════════════════════════════════════
-// SPANK COUNTER
-// ═══════════════════════════════════════════
 function updateSpankUI() {
   document.getElementById('spankCount').textContent = spankCount;
 }
@@ -1422,7 +1413,7 @@ document.getElementById('lbLove').addEventListener('click', function(e) {
   const p = photos[currentPhotoIndex];
   if (!p) return;
   loves[p.id] = (loves[p.id] || 0) + 1;
-  saveState('novaLoves_v2', loves);
+  saveState('loves', loves);
   updateLightbox();
   spawnHearts();
 });
@@ -1443,17 +1434,25 @@ document.getElementById('modalBackdrop').addEventListener('click', function(e) {
 });
 document.getElementById('btnModalSave').addEventListener('click', savePhotoFromModal);
 
-// Photo preview
+// Photo preview (auto-compressed)
 document.getElementById('photoFile').addEventListener('change', function() {
   const file = this.files[0];
   const preview = document.getElementById('photoPreview');
   if (file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      preview.src = e.target.result;
+    const img = new Image();
+    img.onload = function() {
+      const maxW = 400;
+      let w = img.width, h = img.height;
+      const ratio = Math.min(maxW / w, maxW / h, 1);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      preview.src = canvas.toDataURL('image/jpeg', 0.7);
       preview.style.display = 'block';
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
   } else {
     preview.style.display = 'none';
   }
@@ -1484,7 +1483,7 @@ function sendMessage() {
     time: new Date().toLocaleString('zh-CN'),
   });
   if (messages.length > 50) messages = messages.slice(-50);
-  saveState('novaMessages_v2', messages);
+  saveState('messages', messages);
   renderMessages();
   input.value = '';
   showToast('留言成功！Nova 收到了你的爱～ 💕');
@@ -1532,7 +1531,7 @@ headerCat.addEventListener('click', function(e) {
 headerCat.addEventListener('dblclick', function(e) {
   e.preventDefault();
   spankCount++;
-  saveState('novaSpankCount', spankCount);
+  saveState('spankCount', spankCount);
   updateSpankUI();
   // Spank animation
   headerCat.classList.remove('spank');
