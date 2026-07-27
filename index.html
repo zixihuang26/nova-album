@@ -898,15 +898,8 @@ const DEFAULT_FAMILY = [
   { id: 'nova',  name: 'Nova',  role: '小弟 · 老幺', desc: '全家的傻儿子，被宠坏的老幺。虽然脑子不太够用，但是全家最会撒娇的那个，仗着自己小为所欲为。', avatar: '', emoji: '🐱' },
 ];
 
-async function api(path, body) {
-  try {
-    const opts = body !== undefined
-      ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
-      : { method:'GET' };
-    const r = await fetch(path, opts);
-    return await r.json();
-  } catch(e) { console.error('API error:', e); return null; }
-}
+function saveState(k, v) { try { localStorage.setItem('nova_'+k, JSON.stringify(v)); } catch(e) {} }
+function loadState(k, fb) { try { const v = localStorage.getItem('nova_'+k); return v ? JSON.parse(v) : fb; } catch(e) { return fb; } }
 
 let photos = [];
 let timelineData = [];
@@ -950,8 +943,7 @@ async function loadData() {
   }
 }
 
-async function loadServerState() {
-  const data = await api('/api/state');
+function __removed__() {
   if (!data) return;
   photos = data.photos || [];
   timelineData = data.timeline || [];
@@ -1145,7 +1137,7 @@ function handleFamilyAvatar(id, input) {
     const member = familyMembers.find(m => m.id === id);
     if (member) {
       member.avatar = e.target.result;
-      api('/api/family', {family: familyMembers});
+      saveState('family', familyMembers);
       renderFamily();
       showToast('头像已更新！📷');
     }
@@ -1180,7 +1172,7 @@ function saveFamilyEdit(id) {
   member.name = name;
   member.role = role;
   member.desc = desc;
-  api('/api/family', {family: familyMembers});
+  saveState('family', familyMembers);
   renderFamily();
   showToast('资料已保存！✏️');
 }
@@ -1274,12 +1266,12 @@ function updateLightbox() {
   document.getElementById('lbDelete').style.display = 'inline-flex';
 }
 
-async function deletePhotoFromLightbox() {
+function deletePhotoFromLightbox() {
   if (!confirm('确定要删除这张照片吗？')) return;
   const p = photos[currentPhotoIndex];
-  await api('/api/photos/delete', {id: p.id});
   photos = photos.filter(ph => ph.id !== p.id);
   delete loves[p.id];
+  saveState('photos', photos); saveState('loves', loves);
   closeLightbox();
   renderGallery(currentFilter);
   showToast('照片已删除 🗑️');
@@ -1295,12 +1287,12 @@ function toggleAdminMode() {
   showToast(adminMode ? '管理模式已开启，点击照片左上角 ✕ 可删除' : '管理模式已退出');
 }
 
-async function deletePhoto(index) {
+function deletePhoto(index) {
   const p = photos[index];
   if (!confirm(`确定要删除照片"${p.caption}"吗？`)) return;
-  await api('/api/photos/delete', {id: p.id});
   photos = photos.filter(ph => ph.id !== p.id);
   delete loves[p.id];
+  saveState('photos', photos); saveState('loves', loves);
   renderGallery(currentFilter);
   showToast('照片已删除 🗑️');
 }
@@ -1318,7 +1310,7 @@ function openAddPhotoModal() {
 
 function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
 
-async function savePhotoFromModal() {
+function savePhotoFromModal() {
   const fileInput = document.getElementById('photoFile');
   const caption = document.getElementById('photoCaption').value.trim();
   const date = document.getElementById('photoDate').value;
@@ -1330,14 +1322,13 @@ async function savePhotoFromModal() {
 
   const file = fileInput.files[0];
 
-  async function doSave(base64Src) {
-    const result = await api('/api/photos', {src: base64Src, cat, date, caption, emoji});
-    if (result && result.ok) {
-      photos.push(result.photo);
-      renderGallery(currentFilter);
-      closeModal();
-      showToast('照片添加成功！✨');
-    }
+  function doSave(base64Src) {
+    const maxId = photos.reduce((max, p) => Math.max(max, p.id), 0);
+    photos.push({ id: maxId + 1, src: base64Src, cat, date, caption, emoji });
+    saveState('photos', photos);
+    renderGallery(currentFilter);
+    closeModal();
+    showToast('照片添加成功！✨');
   }
 
   if (file) {
@@ -1367,14 +1358,14 @@ async function savePhotoFromModal() {
 }
 
 // ═══════════════════════ WEIGHT ═══════════════════════
-async function addWeight() {
+function addWeight() {
   const dateInput = document.getElementById('growthDate');
   const weightInput = document.getElementById('growthWeight');
   const date = dateInput.value;
   const weight = parseFloat(weightInput.value);
   if (!date) { showToast('请选择日期～'); return; }
   if (isNaN(weight) || weight <= 0 || weight > 20) { showToast('请输入合理的体重（0.1-20 kg）～'); return; }
-  await api('/api/weights', {date, weight});
+
   weights.push({date, weight});
   weights.sort((a, b) => a.date.localeCompare(b.date));
   renderWeights(); updateBirthdayUI();
@@ -1383,15 +1374,14 @@ async function addWeight() {
   showToast('体重记录已添加！⚖️');
 }
 
-async function deleteWeight(index) {
-  await api('/api/weights/delete', {index});
+function deleteWeight(index) {
   weights.splice(index, 1);
   renderWeights(); updateBirthdayUI();
   showToast('记录已删除');
 }
 
 // ═══════════════════════ TIMELINE ═══════════════════════
-async function addTimeline() {
+function addTimeline() {
   const icon = document.getElementById('tlEmoji').value.trim() || '🐾';
   const date = document.getElementById('tlDate').value;
   const title = document.getElementById('tlTitle').value.trim();
@@ -1399,7 +1389,7 @@ async function addTimeline() {
   if (!date) { showToast('请选择日期～'); return; }
   if (!title) { showToast('请输入标题～'); return; }
   if (!desc) { showToast('请输入描述～'); return; }
-  await api('/api/timeline', {icon, date, title, desc});
+
   timelineData.push({icon, date, title, desc});
   timelineData.sort((a, b) => a.date.localeCompare(b.date));
   renderTimeline();
@@ -1410,22 +1400,21 @@ async function addTimeline() {
   showToast('大事记已添加！📅');
 }
 
-async function deleteTimeline(index) {
+function deleteTimeline(index) {
   if (!confirm('确定删除这条大事记吗？')) return;
-  await api('/api/timeline/delete', {index});
   timelineData.splice(index, 1);
   renderTimeline();
   showToast('已删除');
 }
 
 // ═══════════════════════ FUN FACTS ═══════════════════════
-async function addFact() {
+function addFact() {
   const emoji = document.getElementById('ffEmoji').value.trim() || '🐱';
   const title = document.getElementById('ffTitle').value.trim();
   const desc = document.getElementById('ffDesc').value.trim();
   if (!title) { showToast('请输入标题～'); return; }
   if (!desc) { showToast('请输入描述～'); return; }
-  await api('/api/facts', {emoji, title, desc});
+
   funFacts.push({emoji, title, desc});
   renderFunFacts();
   document.getElementById('ffEmoji').value = '';
@@ -1434,9 +1423,8 @@ async function addFact() {
   showToast('冷知识已添加！💡');
 }
 
-async function deleteFact(index) {
+function deleteFact(index) {
   if (!confirm('确定删除这条冷知识吗？')) return;
-  await api('/api/facts/delete', {index});
   funFacts.splice(index, 1);
   renderFunFacts();
   showToast('已删除');
@@ -1462,16 +1450,14 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowRight') navLightbox(1);
 });
 
-document.getElementById('lbLove').addEventListener('click', async function(e) {
+document.getElementById('lbLove').addEventListener('click', function(e) {
   e.stopPropagation();
   const p = photos[currentPhotoIndex];
   if (!p) return;
-  const result = await api('/api/love', {id: p.id});
-  if (result) {
-    loves[p.id] = result.count;
-    updateLightbox();
-    spawnHearts();
-  }
+  loves[p.id] = (loves[p.id] || 0) + 1;
+  saveState('loves', loves);
+  updateLightbox();
+  spawnHearts();
 });
 
 document.getElementById('lbDelete').addEventListener('click', function(e) {
@@ -1529,7 +1515,7 @@ document.getElementById('msgSend').addEventListener('click', sendMessage);
 document.getElementById('msgInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') sendMessage();
 });
-async function sendMessage() {
+function sendMessage() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text) return;
@@ -1538,7 +1524,6 @@ async function sendMessage() {
     text, avatar: avatars[Math.floor(Math.random() * avatars.length)],
     time: new Date().toLocaleString('zh-CN'),
   };
-  await api('/api/messages', msg);
   messages.push(msg);
   if (messages.length > 50) messages = messages.slice(-50);
   renderMessages();
@@ -1585,10 +1570,10 @@ headerCat.addEventListener('click', function(e) {
 });
 
 // Double click: spank!
-headerCat.addEventListener('dblclick', async function(e) {
+headerCat.addEventListener('dblclick', function(e) {
   e.preventDefault();
-  const result = await api('/api/spank', {});
-  if (result) spankCount = result.count;
+  spankCount++;
+  saveState('spankCount', spankCount);
   updateSpankUI();
   // Spank animation
   headerCat.classList.remove('spank');
@@ -1704,7 +1689,7 @@ function spawnHearts() {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-function saveState(k, v) { try { localStorage.setItem('nova_' + k, JSON.stringify(v)); } catch(e) {} }
+
 function loadState(k, fb) { try { const v = localStorage.getItem('nova_' + k); return v ? JSON.parse(v) : fb; } catch(e) { return fb; } }
 
 async function init() {
