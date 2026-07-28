@@ -625,7 +625,6 @@
 </style>
 </head>
 <body>
-<div id="__debug" style="position:fixed;top:0;left:0;z-index:999999;background:#333;color:#0f0;padding:8px 16px;font-size:12px;font-family:monospace;border-radius:0 0 8px 0;">Loading...</div>
 
 <!-- Header -->
 <header>
@@ -931,14 +930,11 @@ let currentPhotoIndex = 0;
 let lightboxOpen = false;
 
 var DATA_VERSION = 2;
-function dbg(m) { var e = document.getElementById('__debug'); if(e) e.textContent = m; }
 async function loadData() {
   try {
-    dbg('Fetching data.json...');
     const r = await fetch('/nova-album/photos/data.json?v=3');
     if (!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
-    dbg('Parsed JSON ok');
     // Always load from server data.json, ignore old localStorage
     photos = d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
     timelineData = d.timeline || [];
@@ -958,7 +954,7 @@ async function loadData() {
     saveState('loves', loves); saveState('messages', messages);
     saveState('spankCount', spankCount); saveState('family', familyMembers);
   } catch(e) {
-    dbg('ERROR: '+e.message);
+    console.error(e);
     photos = []; timelineData = []; funFacts = []; weights = [];
     loves = {}; messages = []; spankCount = 0;
     familyMembers = [...DEFAULT_FAMILY];
@@ -1769,9 +1765,7 @@ function spawnHearts() {
 function loadState(k, fb) { try { const v = localStorage.getItem('nova_' + k); return v ? JSON.parse(v) : fb; } catch(e) { return fb; } }
 
 async function init() {
-  dbg('Init started...');
   await loadData();
-  dbg('Rendering: '+photos.length+' photos, '+familyMembers.length+' family...');
   updateBirthdayUI();
   updateSpankUI();
   renderFamily();
@@ -1780,7 +1774,6 @@ async function init() {
   renderFunFacts();
   renderMessages();
   renderWeights();
-  dbg('Done! '+photos.length+' photos shown.');
   document.getElementById('growthDate').value = new Date().toISOString().slice(0,10);
 
   document.addEventListener('dblclick', function(e) {
