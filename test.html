@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Test</title></head><body>
+<h1>Nova Test</h1><div id="out"></div>
+<script>
+fetch('/nova-album/photos/data.json?v=2').then(r => r.json()).then(d => {
+  document.getElementById('out').innerHTML = 'Photos: ' + d.photos.length + '<br>Timeline: ' + d.timeline.length + '<br>Family: ' + d.family.length + '<br>';
+  d.photos.forEach(p => {
+    var img = document.createElement('img');
+    img.src = '/nova-album/photos/' + p.id + '.jpg';
+    img.style = 'width:150px;height:150px;object-fit:cover;margin:5px;';
+    img.onerror = function() { this.style.border = '3px solid red'; };
+    img.onload = function() { this.style.border = '3px solid green'; };
+    document.getElementById('out').appendChild(img);
+  });
+}).catch(e => {
+  document.getElementById('out').innerHTML = 'ERROR: ' + e.message;
+});
+</script>
+</body></html>
