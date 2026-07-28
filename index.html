@@ -980,7 +980,61 @@ function __removed__() {
 }
 
 function photoSrc(p) {
-  return p.src || ('/nova-album/photos/' + p.id + '.jpg');
+  // Prefer explicit src, fallback to github path
+  if (p.src && p.src.length > 10) return p.src;
+  return '/nova-album/photos/' + p.id + '.jpg';
+}
+
+function renderGallery(filter) {
+  filter = filter || 'all';
+  var el = document.getElementById('gallery');
+  var list = filter === 'all' ? photos : photos.filter(function(p) { return p.cat === filter; });
+  if (!photos.length) {
+    el.innerHTML = '<div class="gallery-empty"><span class="empty-icon">📸</span><div class="empty-text">还没有照片呢！</div><button class="btn btn-primary btn-sm" onclick="openAddPhotoModal()">+ 添加照片</button></div>';
+    return;
+  }
+  if (!list.length) {
+    el.innerHTML = '<div class="gallery-empty"><span class="empty-icon">🔍</span><div class="empty-text">这个分类下没有照片</div></div>';
+    return;
+  }
+  el.innerHTML = '';
+  list.forEach(function(p) {
+    var idx = photos.indexOf(p);
+    var card = document.createElement('div');
+    card.className = 'photo-card' + (adminMode ? ' admin-mode' : '');
+    card.setAttribute('data-index', idx);
+    card.setAttribute('data-cat', p.cat);
+    if (!adminMode) card.onclick = function() { openLightbox(idx); };
+
+    var img = document.createElement('img');
+    img.src = photoSrc(p);
+    img.alt = p.caption;
+    img.loading = 'lazy';
+    img.onload = function() { this.style.opacity = '1'; };
+    img.style.opacity = '0';
+    img.style.transition = 'opacity 0.5s';
+    card.appendChild(img);
+
+    if (adminMode) {
+      var del = document.createElement('button');
+      del.className = 'card-delete';
+      del.textContent = '✕';
+      del.onclick = function(e) { e.stopPropagation(); deletePhoto(idx); };
+      card.appendChild(del);
+    }
+
+    var badge = document.createElement('div');
+    badge.className = 'card-badge';
+    badge.textContent = p.emoji;
+    card.appendChild(badge);
+
+    var overlay = document.createElement('div');
+    overlay.className = 'card-overlay';
+    overlay.innerHTML = '<div class="card-date">' + p.date + '</div><div class="card-caption">' + escapeHtml(p.caption) + '</div>';
+    card.appendChild(overlay);
+
+    el.appendChild(card);
+  });
 }
 
 // ═══════════════════════════════════════════
