@@ -914,10 +914,10 @@ let currentFilter = 'all';
 let currentPhotoIndex = 0;
 let lightboxOpen = false;
 
-var DATA_VERSION = 1;
+var DATA_VERSION = 2;
 async function loadData() {
   try {
-    const r = await fetch('/nova-album/photos/data.json');
+    const r = await fetch('/nova-album/photos/data.json?v=2');
     const d = await r.json();
     // Clear old data if version changed
     if (loadState('version', 0) !== DATA_VERSION) {
