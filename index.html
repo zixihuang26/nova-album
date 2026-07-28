@@ -920,9 +920,10 @@ function dbg(m) { var e = document.getElementById('__debug'); if(e) e.textConten
 async function loadData() {
   try {
     dbg('Fetching data.json...');
-    const r = await fetch('/nova-album/photos/data.json?v=2');
+    const r = await fetch('/nova-album/photos/data.json?v=3');
+    if (!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
-    dbg('Data loaded: '+d.photos.length+' photos, '+d.timeline.length+' timeline');
+    dbg('Parsed JSON ok');
     // Always load from server data.json, ignore old localStorage
     photos = d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
     timelineData = d.timeline || [];
@@ -942,7 +943,7 @@ async function loadData() {
     saveState('loves', loves); saveState('messages', messages);
     saveState('spankCount', spankCount); saveState('family', familyMembers);
   } catch(e) {
-    console.log('Data load failed, using defaults');
+    dbg('ERROR: '+e.message);
     photos = []; timelineData = []; funFacts = []; weights = [];
     loves = {}; messages = []; spankCount = 0;
     familyMembers = [...DEFAULT_FAMILY];
