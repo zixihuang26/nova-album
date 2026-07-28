@@ -919,33 +919,29 @@ async function loadData() {
   try {
     const r = await fetch('/nova-album/photos/data.json?v=2');
     const d = await r.json();
-    // Clear old data if version changed
-    if (loadState('version', 0) !== DATA_VERSION) {
-      localStorage.clear();
-      saveState('version', DATA_VERSION);
-    }
-    const localPhotos = loadState('photos', null);
-    photos = localPhotos || d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
-    timelineData = loadState('timeline', null) || d.timeline || [];
-    funFacts = loadState('funFacts', null) || d.funFacts || [];
-    weights = loadState('weights', null) || d.weights || [];
-    loves = loadState('loves', null) || d.loves || {};
-    messages = loadState('messages', null) || d.messages || [];
-    spankCount = loadState('spankCount', -1) >= 0 ? loadState('spankCount', 0) : (d.spankCount || 0);
-    familyMembers = loadState('family', null) || d.family || [...DEFAULT_FAMILY];
+    // Always load from server data.json, ignore old localStorage
+    photos = d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
+    timelineData = d.timeline || [];
+    funFacts = d.funFacts || [];
+    weights = d.weights || [];
+    loves = d.loves || {};
+    messages = d.messages || [];
+    spankCount = d.spankCount || 0;
+    familyMembers = d.family || [...DEFAULT_FAMILY];
+    try { saveState('photos', photos); saveState('timeline', timelineData);
+    saveState('funFacts', funFacts); saveState('weights', weights);
+    saveState('loves', loves); saveState('messages', messages);
+    saveState('spankCount', spankCount); saveState('family', familyMembers); } catch(e) {}
+    return;
     saveState('photos', photos); saveState('timeline', timelineData);
     saveState('funFacts', funFacts); saveState('weights', weights);
     saveState('loves', loves); saveState('messages', messages);
     saveState('spankCount', spankCount); saveState('family', familyMembers);
   } catch(e) {
-    photos = loadState('photos', []);
-    timelineData = loadState('timeline', []);
-    funFacts = loadState('funFacts', []);
-    weights = loadState('weights', []);
-    loves = loadState('loves', {});
-    messages = loadState('messages', []);
-    spankCount = loadState('spankCount', 0);
-    familyMembers = loadState('family', [...DEFAULT_FAMILY]);
+    console.log('Data load failed, using defaults');
+    photos = []; timelineData = []; funFacts = []; weights = [];
+    loves = {}; messages = []; spankCount = 0;
+    familyMembers = [...DEFAULT_FAMILY];
   }
 }
 
