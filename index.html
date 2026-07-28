@@ -192,9 +192,24 @@
     background: var(--card-bg); aspect-ratio: 1 / 1;
   }
   .photo-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: var(--shadow-lg); }
+  .photo-card {
+    background: #d4c5a0;
+  }
   .photo-card img {
     width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s;
   }
+  .photo-card .card-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #d4c5a0, #c4b58a, #d4c5a0);
+    background-size: 200% 200%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    font-size: 40px;
+  }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .photo-card img.loaded + .card-loading { display: none; }
   .photo-card:hover img { transform: scale(1.08); }
   .photo-card .card-overlay {
     position: absolute; bottom: 0; left: 0; right: 0;
@@ -965,7 +980,7 @@ function __removed__() {
 }
 
 function photoSrc(p) {
-  return '/api/photo/' + p.id;
+  return p.src || ('/nova-album/photos/' + p.id + '.jpg');
 }
 
 // ═══════════════════════════════════════════
