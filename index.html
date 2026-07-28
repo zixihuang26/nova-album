@@ -1412,7 +1412,7 @@ function savePhotoFromModal() {
   function compressAndSave(file, callback) {
     const img = new Image();
     img.onload = function() {
-      const maxW = 1600, maxH = 1600;
+      const maxW = 800, maxH = 800;
       let w = img.width, h = img.height;
       if (w > maxW || h > maxH) {
         const ratio = Math.min(maxW / w, maxH / h);
@@ -1422,7 +1422,7 @@ function savePhotoFromModal() {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      callback(canvas.toDataURL('image/jpeg', 0.75));
+      callback(canvas.toDataURL('image/jpeg', 0.6));
     };
     img.onerror = function() { showToast('⚠️ 图片读取失败，请换一张试试'); };
     img.src = URL.createObjectURL(file);
