@@ -916,10 +916,10 @@ let lightboxOpen = false;
 
 async function loadData() {
   try {
-    const r = await fetch('photos/data.json');
+    const r = await fetch('/nova-album/photos/data.json');
     const d = await r.json();
     const localPhotos = loadState('photos', null);
-    photos = localPhotos || d.photos.map(p => ({...p, src: 'photos/' + p.id + '.jpg'}));
+    photos = localPhotos || d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
     timelineData = loadState('timeline', null) || d.timeline || [];
     funFacts = loadState('funFacts', null) || d.funFacts || [];
     weights = loadState('weights', null) || d.weights || [];
