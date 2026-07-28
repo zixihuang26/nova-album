@@ -1696,10 +1696,6 @@ function loadState(k, fb) { try { const v = localStorage.getItem('nova_' + k); r
 
 async function init() {
   await loadData();
-  // Load shared data from server first
-  console.log('🔄 Loading from server...');
-  await loadServerState();
-  console.log('✅ Loaded photos:', photos.length, 'facts:', funFacts.length, 'timeline:', timelineData.length);
   updateBirthdayUI();
   updateSpankUI();
   renderFamily();
