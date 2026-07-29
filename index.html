@@ -688,6 +688,7 @@
       </div>
       <button class="btn btn-outline btn-sm" id="toggleAdmin">🔧 管理</button>
       <button class="btn btn-primary btn-sm" id="btnAddPhoto">+ 添加照片</button>
+      <button class="btn btn-outline btn-sm" onclick="exportAllData()" title="下载数据发给管理员更新到网站">📤 导出数据</button>
     </div>
     <div class="gallery" id="gallery"></div>
   </div>
@@ -1507,6 +1508,46 @@ function deleteFact(index) {
 
 function updateSpankUI() {
   document.getElementById('spankCount').textContent = spankCount;
+}
+
+async function exportAllData() {
+  // Build photos array with base64 data
+  var exportPhotos = [];
+  for (var i = 0; i < photos.length; i++) {
+    var p = photos[i];
+    var base64 = p.src;
+    // If photo src is a URL (not base64), fetch it
+    if (base64 && base64.startsWith('/')) {
+      try {
+        var resp = await fetch(base64);
+        var blob = await resp.blob();
+        base64 = await new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function() { resolve(reader.result); };
+          reader.readAsDataURL(blob);
+        });
+      } catch(e) { base64 = ''; }
+    }
+    exportPhotos.push({
+      id: p.id, cat: p.cat, date: p.date, caption: p.caption, emoji: p.emoji, src: base64
+    });
+  }
+  var data = {
+    photos: exportPhotos,
+    timeline: timelineData,
+    funFacts: funFacts,
+    weights: weights,
+    loves: loves,
+    messages: messages,
+    spankCount: spankCount,
+    family: familyMembers
+  };
+  var blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'nova-data-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('数据已导出！把下载的文件发给我 📤');
 }
 
 // ═══════════════════════════════════════════
