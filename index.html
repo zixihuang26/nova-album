@@ -931,34 +931,37 @@ let lightboxOpen = false;
 
 var DATA_VERSION = 2;
 async function loadData() {
+  // Load from GitHub, but keep user's localStorage additions
+  var basePhotos = [], baseTimeline = [], baseFacts = [], baseWeights = [];
+  var baseLoves = {}, baseMsgs = [], baseSpank = 0, baseFamily = [...DEFAULT_FAMILY];
   try {
-    const r = await fetch('/nova-album/photos/data.json?v=3');
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    const d = await r.json();
-    // Always load from server data.json, ignore old localStorage
-    photos = d.photos.map(p => ({...p, src: '/nova-album/photos/' + p.id + '.jpg'}));
-    timelineData = d.timeline || [];
-    funFacts = d.funFacts || [];
-    weights = d.weights || [];
-    loves = d.loves || {};
-    messages = d.messages || [];
-    spankCount = d.spankCount || 0;
-    familyMembers = d.family || [...DEFAULT_FAMILY];
-    try { saveState('photos', photos); saveState('timeline', timelineData);
+    var r = await fetch('/nova-album/photos/data.json?v=3');
+    if (r.ok) {
+      var d = await r.json();
+      basePhotos = d.photos.map(function(p){ return {...p, src: '/nova-album/photos/'+p.id+'.jpg'}; });
+      baseTimeline = d.timeline || [];
+      baseFacts = d.funFacts || [];
+      baseWeights = d.weights || [];
+      baseLoves = d.loves || {};
+      baseMsgs = d.messages || [];
+      baseSpank = d.spankCount || 0;
+      baseFamily = d.family || [...DEFAULT_FAMILY];
+    }
+  } catch(e) { console.error(e); }
+
+  // localStorage takes priority over GitHub base
+  photos = loadState('photos', null) || basePhotos;
+  timelineData = loadState('timeline', null) || baseTimeline;
+  funFacts = loadState('funFacts', null) || baseFacts;
+  weights = loadState('weights', null) || baseWeights;
+  loves = loadState('loves', null) || baseLoves;
+  messages = loadState('messages', null) || baseMsgs;
+  spankCount = loadState('spankCount', -1) >= 0 ? loadState('spankCount', 0) : baseSpank;
+  familyMembers = loadState('family', null) || baseFamily;
+  try { saveState('photos', photos); saveState('timeline', timelineData);
     saveState('funFacts', funFacts); saveState('weights', weights);
     saveState('loves', loves); saveState('messages', messages);
     saveState('spankCount', spankCount); saveState('family', familyMembers); } catch(e) {}
-    return;
-    saveState('photos', photos); saveState('timeline', timelineData);
-    saveState('funFacts', funFacts); saveState('weights', weights);
-    saveState('loves', loves); saveState('messages', messages);
-    saveState('spankCount', spankCount); saveState('family', familyMembers);
-  } catch(e) {
-    console.error(e);
-    photos = []; timelineData = []; funFacts = []; weights = [];
-    loves = {}; messages = []; spankCount = 0;
-    familyMembers = [...DEFAULT_FAMILY];
-  }
 }
 
 function __removed__() {
